@@ -67,7 +67,6 @@ stages:
       inputs:
         provider: 'azurerm'
         command: 'plan'
-        commandOptions: '-input=false -var="ssh_public_key=$(sshPublicKey)" -var="location=$(location)" -var="resource_group_name=$(resourceGroupName)" -var="script_storage_account_name=$(storageAccountName)" -var="script_storage_account_key=$(storageAccountKey)" -var="container_name=$(containerName)" -var="script_name=$(scriptName)" -var="kubernetes_version=$(kubernetesVersion)" -var-file="$(System.DefaultWorkingDirectory)/tfvars/$(environment)/$(environment).tfvars"'
         environmentServiceNameAzureRM: $(azureSubscription)
         workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraformPath)/'
 
@@ -78,7 +77,6 @@ stages:
       inputs:
         provider: 'azurerm'
         command: 'apply'
-        commandOptions: '-input=false -auto-approve -var="ssh_public_key=$(sshPublicKey)" -var="location=$(location)" -var="resource_group_name=$(resourceGroupName)" -var="script_storage_account_name=$(storageAccountName)" -var="script_storage_account_key=$(storageAccountKey)" -var="container_name=$(containerName)" -var="script_name=$(scriptName)" -var="kubernetes_version=$(kubernetesVersion)" -var-file="$(System.DefaultWorkingDirectory)/tfvars/$(environment)/$(environment).tfvars"'
         environmentServiceNameAzureRM: $(azureSubscription)
         workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraformPath)/'
 
