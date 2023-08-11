@@ -1,0 +1,84 @@
+Parameters:
+- name: terraformPath
+  type: string
+  default: dev
+
+trigger:
+- none
+
+variables:
+- group: global-variables
+
+stages:
+- stage: InfraDeploy
+  jobs:
+  - job: infra_deploy
+    displayName: Deploy Terraform
+    pool:
+      vmImage: 'ubuntu-ladev'
+    steps:
+
+    - task: Bash@3
+      inputs:
+        workingDirectory: '$(System.DefaultWorkingDirectory)/${{ parameters.terraformPath }}/'
+        targetType: 'inline'
+        script: 'run.sh'
+
+    - bash: |
+        echo "##vso[task.setvariable variable=storageAccountResourceGroupName;]$storageAccountResourceGroupName"
+        echo "##vso[task.setvariable variable=storageAccountName;]$storageAccountName"
+        echo "##vso[task.setvariable variable=storageAccountKey;]$storageAccountKey"
+        echo "##vso[task.setvariable variable=ok;]true"
+
+        echo "Storage Account Name: $(storageAccountName)"
+        echo "Storage Account Key: $(storageAccountKey)"
+      displayName: 'Print Variables'
+      condition: and(succeeded(), not(eq(variables.storageAccountName, '')), not(eq(variables.storageAccountKey, '')))
+      
+
+    - task: TerraformInstaller@0
+      displayName: 'Terraform Install'
+      condition: and(succeeded(), not(eq(variables.storageAccountName, '')), not(eq(variables.storageAccountKey, '')))
+      inputs:
+        terraformVersion: $(terraformVersion)
+
+    - task: TerraformTaskV2@2
+      displayName: 'Terraform Init'
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        backendServiceArm: $(azureSubscription)
+        backendAzureRmResourceGroupName: $(terraformBackendResourceGroupName)
+        backendAzureRmStorageAccountName: $(terraformBackendStorageAccountName)
+        backendAzureRmContainerName: '$(terraformBackendContainerName)'
+        backendAzureRmKey: $(tfstatePath)
+        workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraformPath)/'
+
+    - task: TerraformTaskV2@2
+      displayName: 'Terraform Validate'
+      condition: and(succeeded(), not(eq(variables.storageAccountName, '')), not(eq(variables.storageAccountKey, '')))
+      inputs:
+        provider: 'azurerm'
+        command: 'validate'
+
+    - task: TerraformTaskV2@2
+      displayName: 'Terraform Plan'
+      condition: and(succeeded(), not(eq(variables.storageAccountName, '')), not(eq(variables.storageAccountKey, '')))
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        commandOptions: '-input=false -var="ssh_public_key=$(sshPublicKey)" -var="location=$(location)" -var="resource_group_name=$(resourceGroupName)" -var="script_storage_account_name=$(storageAccountName)" -var="script_storage_account_key=$(storageAccountKey)" -var="container_name=$(containerName)" -var="script_name=$(scriptName)" -var="kubernetes_version=$(kubernetesVersion)" -var-file="$(System.DefaultWorkingDirectory)/tfvars/$(environment)/$(environment).tfvars"'
+        environmentServiceNameAzureRM: $(azureSubscription)
+        workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraformPath)/'
+
+    - task: TerraformTaskV2@2
+      displayName: 'Terraform Apply'
+      condition: and(succeeded(), not(eq(variables.storageAccountName, '')), not(eq(variables.storageAccountKey, '')))
+      enabled: true
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        commandOptions: '-input=false -auto-approve -var="ssh_public_key=$(sshPublicKey)" -var="location=$(location)" -var="resource_group_name=$(resourceGroupName)" -var="script_storage_account_name=$(storageAccountName)" -var="script_storage_account_key=$(storageAccountKey)" -var="container_name=$(containerName)" -var="script_name=$(scriptName)" -var="kubernetes_version=$(kubernetesVersion)" -var-file="$(System.DefaultWorkingDirectory)/tfvars/$(environment)/$(environment).tfvars"'
+        environmentServiceNameAzureRM: $(azureSubscription)
+        workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraformPath)/'
+
